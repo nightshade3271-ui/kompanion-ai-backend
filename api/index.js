@@ -12,8 +12,8 @@ app.use(express.json());
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.BACKEND_URL || 'https://kompanion-ai-backend.vercel.app/auth/google/callback`
-);
+  'https://kompanion-ai-backend.vercel.app/auth/google/callback'
+ );
 
 // Scopes for Calendar, Drive, and Gmail
 const SCOPES = [
@@ -375,3 +375,4 @@ if (require.main === module) {
 // Export for Vercel
 
 module.exports = app;
+
