@@ -80,17 +80,76 @@ app.get('/auth/google/callback', async (req, res) => {
       state: state || 'default',
     }).toString();
 
-    // For web testing, show tokens
-    if (req.query.web === 'true') {
-      return res.json({
-        tokens,
-        userInfo,
-        redirectUrl,
-      });
-    }
-
-    // Redirect to mobile app
-    res.redirect(redirectUrl);
+    // For mobile apps, show a success page with tokens in URL fragment
+    // This allows the WebBrowser to capture the tokens before closing
+    const successPage = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Authentication Successful</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+          }
+          .container {
+            max-width: 400px;
+          }
+          h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+          }
+          p {
+            font-size: 18px;
+            opacity: 0.9;
+          }
+          .checkmark {
+            font-size: 64px;
+            margin-bottom: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="checkmark">✓</div>
+          <h1>Authentication Successful!</h1>
+          <p>You can close this window and return to KompanionAI.</p>
+        </div>
+        <script>
+          // Store tokens in URL fragment for mobile app to read
+          const params = new URLSearchParams({
+            access_token: '${tokens.access_token}',
+            refresh_token: '${tokens.refresh_token || ''}',
+            expires_in: '${tokens.expiry_date || ''}',
+            email: '${userInfo.email || ''}',
+            name: '${encodeURIComponent(userInfo.name || '')}',
+            picture: '${userInfo.picture || ''}',
+            state: '${state || 'default'}'
+          });
+          
+          // Update URL with fragment
+          window.location.hash = params.toString();
+          
+          // Try to close window after 2 seconds
+          setTimeout(() => {
+            window.close();
+          }, 2000);
+        </script>
+      </body>
+      </html>
+    `;
+    
+    res.send(successPage);
   } catch (error) {
     console.error('OAuth callback error:', error);
     res.status(500).json({
