@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
+require('dotenv').config();
 
 const app = express();
 
@@ -13,7 +14,7 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   'https://kompanion-ai-backend.vercel.app/auth/google/callback'
- );
+);
 
 // Scopes for Calendar, Drive, and Gmail
 const SCOPES = [
@@ -40,7 +41,7 @@ app.get('/', (req, res) => {
 // Generate OAuth URL
 app.get('/auth/google/url', (req, res) => {
   const { state } = req.query;
-  
+
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -62,15 +63,15 @@ app.get('/auth/google/callback', async (req, res) => {
   try {
     // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
-    
+
     // Get user info
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data: userInfo } = await oauth2.userinfo.get();
 
     // Redirect back to mobile app with tokens
-    const mobileRedirect = process.env.MOBILE_REDIRECT_URI || 'manus20241217222156://oauth/callback';
-    const redirectUrl = `${mobileRedirect}?` + new URLSearchParams({
+    const mobileRedirect = process.env.MOBILE_REDIRECT_URI || 'kompanion-ai://oauth/callback';
+    const params = new URLSearchParams({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token || '',
       expires_in: tokens.expiry_date ? String(tokens.expiry_date) : '',
@@ -78,78 +79,15 @@ app.get('/auth/google/callback', async (req, res) => {
       name: userInfo.name || '',
       picture: userInfo.picture || '',
       state: state || 'default',
-    }).toString();
+    });
 
-    // For mobile apps, show a success page with tokens in URL fragment
-    // This allows the WebBrowser to capture the tokens before closing
-    const successPage = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Authentication Successful</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
-            padding: 20px;
-          }
-          .container {
-            max-width: 400px;
-          }
-          h1 {
-            font-size: 32px;
-            margin-bottom: 16px;
-          }
-          p {
-            font-size: 18px;
-            opacity: 0.9;
-          }
-          .checkmark {
-            font-size: 64px;
-            margin-bottom: 20px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="checkmark">✓</div>
-          <h1>Authentication Successful!</h1>
-          <p>You can close this window and return to KompanionAI.</p>
-        </div>
-        <script>
-          // Store tokens in URL fragment for mobile app to read
-          const params = new URLSearchParams({
-            access_token: '${tokens.access_token}',
-            refresh_token: '${tokens.refresh_token || ''}',
-            expires_in: '${tokens.expiry_date || ''}',
-            email: '${userInfo.email || ''}',
-            name: '${encodeURIComponent(userInfo.name || '')}',
-            picture: '${userInfo.picture || ''}',
-            state: '${state || 'default'}'
-          });
-          
-          // Update URL with fragment
-          window.location.hash = params.toString();
-          
-          // Try to close window after 2 seconds
-          setTimeout(() => {
-            window.close();
-          }, 2000);
-        </script>
-      </body>
-      </html>
-    `;
-    
-    res.send(successPage);
+    const redirectUrl = `${mobileRedirect}?${params.toString()}`;
+
+    console.log('Redirecting to:', redirectUrl);
+
+    // For Expo WebBrowser, we MUST redirect to the custom scheme
+    // The previous HTML success page approach didn't trigger the app to capture the URL
+    res.redirect(redirectUrl);
   } catch (error) {
     console.error('OAuth callback error:', error);
     res.status(500).json({
@@ -375,4 +313,3 @@ if (require.main === module) {
 // Export for Vercel
 
 module.exports = app;
-

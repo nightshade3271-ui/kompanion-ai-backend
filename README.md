@@ -42,11 +42,11 @@ OAuth backend for Google Calendar, Drive, and Gmail integration.
    - `GOOGLE_CLIENT_ID`: `622748485610-f9f00ibv9svabbi9vqsl6eq8c95bgolc.apps.googleusercontent.com`
    - `GOOGLE_CLIENT_SECRET`: (your client secret)
    - `BACKEND_URL`: (leave empty, will be set after deployment)
-   - `MOBILE_REDIRECT_URI`: `manus20241217222156://oauth/callback`
+   - `MOBILE_REDIRECT_URI`: `kompanion-ai://oauth/callback`
 
 7. Click **Deploy**
 
-8. After deployment, copy your Vercel URL (e.g., `https://kompanion-backend.vercel.app`)
+8. After deployment, copy your Vercel URL (e.g., `https://kompanion-ai-backend.vercel.app`)
 
 9. Go back to Vercel → **Settings** → **Environment Variables**
 10. Update `BACKEND_URL` with your Vercel URL
@@ -58,8 +58,8 @@ OAuth backend for Google Calendar, Drive, and Gmail integration.
 1. Go back to Google Cloud Console → **Credentials**
 2. Click on your OAuth 2.0 Client ID
 3. Add **Authorized redirect URIs**:
-   - `https://YOUR_VERCEL_URL.vercel.app/auth/google/callback`
-   - `manus20241217222156://oauth/callback`
+   - `https://kompanion-ai-backend.vercel.app/auth/google/callback`
+   *(Note: Do NOT add the kompanion-ai:// scheme here; Google only allows standard domains. The backend handles the redirect to the app.)*
 
 4. Click **Save**
 
@@ -108,7 +108,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Server runs on `http://localhost:3000`
+Local backend runs on `http://localhost:3000`. By default, the mobile app will talk to this local address when running in development mode.
 
 ## Notes
 
