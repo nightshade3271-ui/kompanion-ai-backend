@@ -40,12 +40,19 @@ app.get('/', (req, res) => {
 
 // Generate OAuth URL
 app.get('/auth/google/url', (req, res) => {
-  const { state } = req.query;
+  const { state, redirect_uri } = req.query;
+
+  // Package state and mobile redirect_uri into a base64 string
+  const stateObj = JSON.stringify({
+    state: state || 'default',
+    redirect_uri: redirect_uri || process.env.MOBILE_REDIRECT_URI || 'kompanion-ai://oauth/callback'
+  });
+  const encodedState = Buffer.from(stateObj).toString('base64');
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    state: state || 'default',
+    state: encodedState,
     prompt: 'consent', // Force consent screen to get refresh token
   });
 
@@ -69,8 +76,22 @@ app.get('/auth/google/callback', async (req, res) => {
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data: userInfo } = await oauth2.userinfo.get();
 
+    // Parse state to get mobile redirect URI
+    let mobileRedirect = process.env.MOBILE_REDIRECT_URI || 'kompanion-ai://oauth/callback';
+    let originalState = 'default';
+
+    if (state) {
+      try {
+        const stateObj = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        mobileRedirect = stateObj.redirect_uri || mobileRedirect;
+        originalState = stateObj.state || originalState;
+      } catch (e) {
+        console.error('Failed to parse state:', e);
+        originalState = state; // Fallback to raw state if not base64 JSON
+      }
+    }
+
     // Redirect back to mobile app with tokens
-    const mobileRedirect = process.env.MOBILE_REDIRECT_URI || 'kompanion-ai://oauth/callback';
     const params = new URLSearchParams({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token || '',
@@ -78,15 +99,14 @@ app.get('/auth/google/callback', async (req, res) => {
       email: userInfo.email || '',
       name: userInfo.name || '',
       picture: userInfo.picture || '',
-      state: state || 'default',
+      state: originalState,
     });
 
-    const redirectUrl = `${mobileRedirect}?${params.toString()}`;
+    const redirectUrl = `${mobileRedirect}${mobileRedirect.includes('?') ? '&' : '?'}${params.toString()}`;
 
-    console.log('Redirecting to:', redirectUrl);
+    console.log('Redirecting to mobile app:', redirectUrl);
 
-    // For Expo WebBrowser, we MUST redirect to the custom scheme
-    // The previous HTML success page approach didn't trigger the app to capture the URL
+    // Redirect to the mobile app scheme
     res.redirect(redirectUrl);
   } catch (error) {
     console.error('OAuth callback error:', error);
